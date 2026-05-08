@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AI Model Selector — Find the Right Model for Your Use Case</title>
+  <meta name="description" content="Interactive platform to compare and choose the best AI model for your task. Filter by price, speed, context window, capabilities and more."/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">Model<span>Selector</span> <span style="font-size:.65rem;padding:2px 8px;background:rgba(99,102,241,0.15);border-radius:4px;color:var(--accent);font-weight:700">AI</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showView('wizard')" id="tab-wizard">🧭 Guided Wizard</button>
+      <button class="nav-tab" onclick="showView('explorer')" id="tab-explorer">📊 Model Explorer <span class="nav-badge" id="model-count">...</span></button>
+      <button class="nav-tab" onclick="showView('chart')" id="tab-chart">📈 Quality vs Cost</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════ WIZARD VIEW ═══════════════ -->
+<div class="view active" id="view-wizard">
+  <div class="hero">
+    <div class="hero-tag">Step-by-Step Decision Pipeline</div>
+    <h1>Find Your <span>Perfect AI Model</span></h1>
+    <p>Answer a few questions about your use case and we'll recommend the best models for your needs.</p>
+  </div>
+  <div class="wizard-wrap">
+    <!-- Progress -->
+    <div class="wizard-progress" id="wizard-progress"></div>
+    <!-- Step container -->
+    <div id="wizard-step-container"></div>
+    <!-- Results container -->
+    <div id="wizard-results" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ EXPLORER VIEW ═══════════════ -->
+<div class="view" id="view-explorer">
+  <div class="explorer-layout">
+    <!-- Sidebar Filters -->
+    <aside class="sidebar">
+      <div class="search-box">
+        <span class="si">🔍</span>
+        <input type="text" id="search-input" placeholder="Search models…" oninput="applyFilters()"/>
+      </div>
+
+      <div class="filter-section">
+        <h4>Task Type</h4>
+        <div class="chip-group" id="task-chips"></div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Provider</h4>
+        <div class="custom-select" id="cs-provider" style="margin-top: 6px;">
+          <div class="cs-selected" onclick="toggleCustomSelect('cs-provider')"><span id="cs-provider-val">All Providers</span></div>
+          <div class="cs-options" id="cs-provider-options">
+            <div class="cs-option active" onclick="selectCustomOption('cs-provider', '', 'All Providers')">All Providers</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Intelligence Score</h4>
+        <div class="range-filter">
+          <label>Min: <b id="score-val">0</b></label>
+          <input type="range" id="score-min" min="0" max="100" value="0" oninput="document.getElementById('score-val').textContent=this.value;applyFilters()"/>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Max Input Price ($/M tokens)</h4>
+        <div class="range-filter">
+          <label>Up to: <b id="price-in-val">$40</b></label>
+          <input type="range" id="price-in-max" min="0" max="40" value="40" step="0.5" oninput="document.getElementById('price-in-val').textContent='$'+this.value;applyFilters()"/>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Max Output Price ($/M tokens)</h4>
+        <div class="range-filter">
+          <label>Up to: <b id="price-out-val">$40</b></label>
+          <input type="range" id="price-out-max" min="0" max="40" value="40" step="0.5" oninput="document.getElementById('price-out-val').textContent='$'+this.value;applyFilters()"/>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Min Output Speed (tok/s)</h4>
+        <div class="range-filter">
+          <label>At least: <b id="speed-val">0</b> tok/s</label>
+          <input type="range" id="speed-min" min="0" max="200" value="0" step="5" oninput="document.getElementById('speed-val').textContent=this.value;applyFilters()"/>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Properties</h4>
+        <div class="chip-group">
+          <div class="chip" id="chip-os" onclick="toggleChip('chip-os','openSource')">🟢 Open Source</div>
+          <div class="chip" id="chip-mm" onclick="toggleChip('chip-mm','multimodal')">🖼️ Multimodal</div>
+          <div class="chip" id="chip-ft" onclick="toggleChip('chip-ft','supportsFinetuning')">⚙️ Fine-tunable</div>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <h4>Deployment</h4>
+        <div class="chip-group" id="deploy-chips"></div>
+      </div>
+
+      <span class="reset-link" onclick="resetFilters()">↺ Reset all filters</span>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="explorer-main">
+      <div class="explorer-toolbar">
+        <div class="result-count"><b id="filtered-count">30</b> models found</div>
+        <div class="custom-select" id="cs-sort" style="width:220px; z-index:40;">
+          <div class="cs-selected" onclick="toggleCustomSelect('cs-sort')"><span id="cs-sort-val">↓ Intelligence Score</span></div>
+          <div class="cs-options" id="cs-sort-options">
+            <div class="cs-option active" onclick="selectCustomOption('cs-sort', 'intelligenceScore-desc', '↓ Intelligence Score')">↓ Intelligence Score</div>
+            <div class="cs-option" onclick="selectCustomOption('cs-sort', 'inputPrice-asc', '↑ Price (cheapest)')">↑ Price (cheapest)</div>
+            <div class="cs-option" onclick="selectCustomOption('cs-sort', 'inputPrice-desc', '↓ Price (expensive)')">↓ Price (expensive)</div>
+            <div class="cs-option" onclick="selectCustomOption('cs-sort', 'speed-desc', '↓ Speed (fastest)')">↓ Speed (fastest)</div>
+            <div class="cs-option" onclick="selectCustomOption('cs-sort', 'contextWindow-desc', '↓ Context Window')">↓ Context Window</div>
+            <div class="cs-option" onclick="selectCustomOption('cs-sort', 'name-asc', 'A–Z Name')">A–Z Name</div>
+          </div>
+        </div>
+        <div class="view-toggle">
+          <button class="vt-btn active" id="vt-grid" onclick="setViewMode('grid')">⊞</button>
+          <button class="vt-btn" id="vt-table" onclick="setViewMode('table')">☰</button>
+        </div>
+      </div>
+      <div class="compare-bar" id="compare-bar">
+        <p>Comparing <b id="compare-count">0</b> models</p>
+        <button class="btn btn-primary btn-sm" onclick="openCompareModal()">Compare →</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearCompare()">Clear</button>
+      </div>
+      <div id="models-container"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════ CHART VIEW ═══════════════ -->
+<div class="view" id="view-chart">
+  <div class="chart-wrap">
+    <div class="hero" style="padding-top:32px;padding-bottom:16px">
+      <div class="hero-tag">Advanced Analytics</div>
+      <h1 style="font-size:2rem">Model <span>Analytics</span> Dashboard</h1>
+      <p>Explore trade-offs using the interactive plotter or the dashboard grid.</p>
+    </div>
+
+    <!-- Analytics Mode Toggle -->
+    <div class="view-toggle" style="justify-content:center; margin-bottom: 24px;">
+      <button class="vt-btn active" id="vt-plotter" onclick="setAnalyticsMode('plotter')">Interactive Plotter</button>
+      <button class="vt-btn" id="vt-dashboard" onclick="setAnalyticsMode('dashboard')">Dashboard Grid</button>
+    </div>
+
+    <!-- Mode 1: Interactive Plotter -->
+    <div id="analytics-plotter" style="display:block">
+      <div class="chart-controls" style="background:var(--surface); padding:16px; border-radius:var(--radius2); border:1px solid var(--border2); margin-bottom:16px; display:flex; flex-wrap:wrap; gap:16px;">
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;font-weight:600">X-Axis</label>
+          <select class="sort-select" id="plot-x" onchange="renderPlotter()">
+            <option value="blendedPrice">Blended Price</option>
+            <option value="inputPrice">Input Price</option>
+            <option value="outputPrice">Output Price</option>
+            <option value="contextWindow">Context Window</option>
+            <option value="intelligenceScore">Intelligence Score</option>
+            <option value="speed">Speed (tok/s)</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;font-weight:600">Y-Axis</label>
+          <select class="sort-select" id="plot-y" onchange="renderPlotter()">
+            <option value="intelligenceScore" selected>Intelligence Score</option>
+            <option value="speed">Speed (tok/s)</option>
+            <option value="latency">Latency (TTFT)</option>
+            <option value="contextWindow">Context Window</option>
+            <option value="blendedPrice">Blended Price</option>
+          </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <label style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;font-weight:600">Filters</label>
+          <div style="display:flex; gap:12px; height:100%; align-items:center;">
+            <label style="font-size:.85rem;color:var(--text2);display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="plot-os-only" onchange="renderPlotter()" style="accent-color:var(--accent)"/> Open Source only
+            </label>
+            <label style="font-size:.85rem;color:var(--text2);display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="plot-curated-only" onchange="renderPlotter()" checked style="accent-color:var(--accent)"/> Curated Models only
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="chart-legend" id="plotter-legend"></div>
+      <div class="chart-container" style="position:relative">
+        <svg id="plotter-svg" height="540" style="width:100%"></svg>
+      </div>
+    </div>
+
+    <!-- Mode 2: Dashboard Grid -->
+    <div id="analytics-dashboard" style="display:none">
+      <div class="dashboard-grid">
+        <div class="chart-container" style="padding:16px;">
+          <h4 style="margin-top:0;margin-bottom:12px;text-align:center;font-size:0.9rem">Intelligence vs Blended Price</h4>
+          <svg id="dash-svg-1" height="250" style="width:100%"></svg>
+        </div>
+        <div class="chart-container" style="padding:16px;">
+          <h4 style="margin-top:0;margin-bottom:12px;text-align:center;font-size:0.9rem">Speed vs Latency</h4>
+          <svg id="dash-svg-2" height="250" style="width:100%"></svg>
+        </div>
+        <div class="chart-container" style="padding:16px;">
+          <h4 style="margin-top:0;margin-bottom:12px;text-align:center;font-size:0.9rem">Context Window vs Input Price</h4>
+          <svg id="dash-svg-3" height="250" style="width:100%"></svg>
+        </div>
+        <div class="chart-container" style="padding:16px;">
+          <h4 style="margin-top:0;margin-bottom:12px;text-align:center;font-size:0.9rem">Intelligence vs Speed</h4>
+          <svg id="dash-svg-4" height="250" style="width:100%"></svg>
+        </div>
+      </div>
+      <p style="font-size:.75rem;color:var(--text3);text-align:center;margin-top:16px;">Dashboard displays highly-verified curated models to maintain accuracy.</p>
+    </div>
+
+    <!-- Reusable Tooltip -->
+    <div class="chart-tooltip" id="chart-tooltip"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ COMPARE MODAL ═══════════════ -->
+<div class="modal-overlay" id="compare-modal" onclick="closeCompareModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Model Comparison</h3>
+      <button class="modal-close" onclick="closeCompareModal()">✕ Close</button>
+    </div>
+    <div id="compare-modal-body"></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
